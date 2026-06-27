@@ -50,9 +50,10 @@ def load_config():
     if row:
         ball_types = json.loads(row[0])
     else:
+        # 預設價格與數量皆調整為整數
         ball_types = [
-            {"name": "RSL No.4", "tube_price": 450.0, "count": 12},
-            {"name": "勝利比賽級", "tube_price": 540.0, "count": 12}
+            {"name": "RSL No.4", "tube_price": 450, "count": 12},
+            {"name": "勝利比賽級", "tube_price": 540, "count": 12}
         ]
     conn.close()
     return wallet, ball_types
@@ -110,8 +111,8 @@ if "wallet_balance" not in st.session_state or "ball_types" not in st.session_st
 draft = load_today_draft()
 if draft is None:
     draft = {
-        "court_rate_1": 150, "court_hours_1": 1.0,
-        "court_rate_2": 250, "court_hours_2": 0.0,
+        "court_rate_1": 0, "court_hours_1": 0,
+        "court_rate_2": 0, "court_hours_2": 0,
         "ball_selectors_count": 1, "ball_selections": [{"name": "", "count": 0}],
         "revenue_selectors_count": 1, "revenue_selections": [{"type": "250", "custom": 100, "count": 0}],
         "check_groups": [], "input_blocks_count": 1
@@ -119,10 +120,10 @@ if draft is None:
 
 def sync_state_to_draft():
     current_draft = {
-        "court_rate_1": st.session_state.get("c_rate_1", 150),
-        "court_hours_1": st.session_state.get("c_hours_1", 1.0),
-        "court_rate_2": st.session_state.get("c_rate_2", 250),
-        "court_hours_2": st.session_state.get("c_hours_2", 0.0),
+        "court_rate_1": st.session_state.get("c_rate_1", 0),
+        "court_hours_1": st.session_state.get("c_hours_1", 0),
+        "court_rate_2": st.session_state.get("c_rate_2", 0),
+        "court_hours_2": st.session_state.get("c_hours_2", 0),
         "ball_selectors_count": st.session_state.get("ball_selectors_count", 1),
         "ball_selections": [
             {
@@ -182,12 +183,12 @@ with tab_balls:
     st.header("📦 球種與價格自訂")
     with st.expander("➕ 新增新球種/價格"):
         new_ball_name = st.text_input("球種名稱", placeholder="例如：YY AS-30")
-        new_tube_price = st.number_input("一筒價格 ($)", min_value=0.0, value=500.0)
-        new_ball_count = st.number_input("一筒有幾顆", min_value=1, value=12)
+        new_tube_price = st.number_input("一筒價格 ($)", min_value=0, value=500, step=10)
+        new_ball_count = st.number_input("一筒有幾顆", min_value=1, value=12, step=1)
         if st.button("➕ 儲存新球種"):
             if new_ball_name:
                 st.session_state.ball_types.append({
-                    "name": new_ball_name, "tube_price": new_tube_price, "count": new_ball_count
+                    "name": new_ball_name, "tube_price": int(new_tube_price), "count": int(new_ball_count)
                 })
                 save_config(st.session_state.wallet_balance, st.session_state.ball_types)
                 st.success(f"已儲存 {new_ball_name}")
@@ -198,7 +199,7 @@ with tab_balls:
         per_price = b["tube_price"] / b["count"]
         c_b1, c_b2, c_b3 = st.columns([3, 3, 1])
         c_b1.write(f"**{b['name']}**")
-        c_b2.write(f"一筒 ${b['tube_price']} → 單顆: ${per_price:.1f}")
+        c_b2.write(f"一筒 ${int(b['tube_price'])} → 單顆: ${per_price:.1f}")
         if c_b3.button("🗑️", key=f"del_b_{idx}"):
             st.session_state.ball_types.pop(idx)
             save_config(st.session_state.wallet_balance, st.session_state.ball_types)
@@ -221,7 +222,7 @@ with tab_check:
                 final_p = int(sel_price_type)
         with col_in2:
             txt_list = st.text_area("貼上名單", placeholder="1.小宗\n2.阿杜", height=100, key=f"in_txt_{b_idx}")
-        current_inputs.append({"price": final_p, "text": txt_list})
+        current_inputs.append({"price": int(final_p), "text": txt_list})
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -261,7 +262,8 @@ with tab_check:
         
         need_rerun = False
         for p_idx, player in enumerate(st.session_state.check_groups):
-            col_ck1, col_ck2, col_ck3, col_ck4 = st.columns([0.6, 4.0, 1.8, 0.6])
+            # 優化手機版排版：橫向對齊、按鈕放到最右邊不留白
+            col_ck1, col_ck2, col_ck3, col_ck4 = st.columns([1, 5, 3, 1])
             with col_ck1:
                 is_ck = st.checkbox("", value=player["checked"], key=f"ck_g_{p_idx}", on_change=sync_state_to_draft)
                 st.session_state.check_groups[p_idx]["checked"] = is_ck
@@ -279,26 +281,27 @@ with tab_check:
 
 with tab_main:
     st.header("🏢 2. 場地費計算")
+    # 每小時費用與小時數預設皆改為 0
     col_c1_rate, col_c1_hr = st.columns(2)
     with col_c1_rate:
-        court_rate_1 = st.number_input("每小時費用 ($)", min_value=0, value=int(draft.get("court_rate_1", 150)), step=50, key="c_rate_1", on_change=sync_state_to_draft)
+        court_rate_1 = st.number_input("每小時費用 ($)", min_value=0, value=int(draft.get("court_rate_1", 0)), step=50, key="c_rate_1", on_change=sync_state_to_draft)
     with col_c1_hr:
-        court_hours_1 = st.number_input("使用小時數", min_value=0.0, value=float(draft.get("court_hours_1", 1.0)), step=0.5, key="c_hours_1", on_change=sync_state_to_draft)
+        court_hours_1 = st.number_input("使用小時數", min_value=0, value=int(draft.get("court_hours_1", 0)), step=1, key="c_hours_1", on_change=sync_state_to_draft)
     subtotal_court_1 = court_rate_1 * court_hours_1
 
     col_c2_rate, col_c2_hr = st.columns(2)
     with col_c2_rate:
-        court_rate_2 = st.number_input("每小時費用 ($) ", min_value=0, value=int(draft.get("court_rate_2", 250)), step=50, key="c_rate_2", on_change=sync_state_to_draft)
+        court_rate_2 = st.number_input("每小時費用 ($) ", min_value=0, value=int(draft.get("court_rate_2", 0)), step=50, key="c_rate_2", on_change=sync_state_to_draft)
     with col_c2_hr:
-        court_hours_2 = st.number_input("使用小時數 ", min_value=0.0, value=float(draft.get("court_hours_2", 0.0)), step=0.5, key="c_hours_2", on_change=sync_state_to_draft)
+        court_hours_2 = st.number_input("使用小時數 ", min_value=0, value=int(draft.get("court_hours_2", 0)), step=1, key="c_hours_2", on_change=sync_state_to_draft)
     subtotal_court_2 = court_rate_2 * court_hours_2
     
-    total_court_fee = math.floor(subtotal_court_1 + subtotal_court_2)
+    total_court_fee = int(subtotal_court_1 + subtotal_court_2)
     st.caption(f"➔ 場地費總計 $ {total_court_fee} 元")
 
     st.divider()
     st.header("🏸 4. 消耗羽毛球計算")
-    exact_ball_fee = 0.0
+    exact_ball_fee = 0
     used_balls_summary = []
 
     if not st.session_state.ball_types:
