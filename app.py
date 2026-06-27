@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import json
-import math
 import os
 from datetime import datetime
 
@@ -54,7 +53,12 @@ def load_today_draft():
     cursor.execute("SELECT value FROM config WHERE key='today_draft'")
     row = cursor.fetchone()
     conn.close()
-    return json.loads(row[0]) if row and row[0] else None
+    if row and row[0]:
+        try:
+            return json.loads(row[0])
+        except:
+            return None
+    return None
 
 def load_history():
     conn = sqlite3.connect(DB_FILE)
@@ -73,26 +77,26 @@ init_db()
 if "wallet_balance" not in st.session_state:
     st.session_state.wallet_balance, st.session_state.ball_types = load_config()
 
-draft = load_today_draft() or {
-    "c_rate_1": 0, "c_hours_1": 0, "c_rate_2": 0, "c_hours_2": 0,
-    "ball_selectors": [{"name": "", "count": 0}], "rev_selectors": [{"type": "250", "custom": 100, "count": 0}],
-    "check_groups": [], "input_blocks": 1
-}
+# 加入錯誤檢測：若資料結構不匹配，自動重置 draft
+draft = load_today_draft()
+if not draft or "ball_selectors" not in draft:
+    draft = {
+        "c_rate_1": 0, "c_hours_1": 0, "c_rate_2": 0, "c_hours_2": 0,
+        "ball_selectors": [], "rev_selectors": [],
+        "check_groups": [], "input_blocks": 1
+    }
 
 def sync():
     save_today_draft({
         "c_rate_1": st.session_state.get("c_rate_1", 0), "c_hours_1": st.session_state.get("c_hours_1", 0),
         "c_rate_2": st.session_state.get("c_rate_2", 0), "c_hours_2": st.session_state.get("c_hours_2", 0),
-        "ball_selectors": [{"name": st.session_state.get(f"b_name_{i}"), "count": st.session_state.get(f"b_count_{i}", 0)} for i in range(st.session_state.b_count)],
-        "rev_selectors": [{"type": st.session_state.get(f"r_type_{i}"), "custom": st.session_state.get(f"r_cust_{i}", 0), "count": st.session_state.get(f"r_count_{i}", 0)} for i in range(st.session_state.r_count)],
+        "ball_selectors": [], "rev_selectors": [],
         "check_groups": st.session_state.check_groups, "input_blocks": st.session_state.input_blocks
     })
 
-if "b_count" not in st.session_state:
-    st.session_state.b_count = len(draft["ball_selectors"])
-    st.session_state.r_count = len(draft["rev_selectors"])
-    st.session_state.input_blocks = draft["input_blocks"]
+if "check_groups" not in st.session_state:
     st.session_state.check_groups = draft["check_groups"]
+    st.session_state.input_blocks = draft["input_blocks"]
 
 tab1, tab2, tab3, tab4 = st.tabs(["📌 今日對帳", "👥 現場收款", "👛 錢包管理", "📊 歷史記錄"])
 
@@ -100,16 +104,17 @@ with tab2:
     st.header("👥 現場名單收款")
     for i in range(st.session_state.input_blocks):
         c1, c2 = st.columns([1, 2])
-        price = c1.number_input(f"費率 #{i+1}", value=0, step=10)
-        txt = c2.text_area(f"名單 #{i+1}", height=80)
-        if st.button(f"加入名單 #{i+1}"):
+        price = c1.number_input(f"費率 #{i+1}", value=0, step=10, key=f"p_in_{i}")
+        txt = c2.text_area(f"名單 #{i+1}", height=80, key=f"t_in_{i}")
+        if st.button(f"加入名單 #{i+1}", key=f"add_{i}"):
             for name in txt.split('\n'):
                 if name.strip(): st.session_state.check_groups.append({"raw": name, "price": price, "checked": False})
             sync(); st.rerun()
     
     st.write("---")
     for idx, p in enumerate(st.session_state.check_groups):
-        cols = st.columns([0.5, 3, 2, 0.8], vertical_alignment="center")
+        # 排版修正：強制欄位比例，讓垃圾桶在最右邊
+        cols = st.columns([0.5, 3, 2, 0.5], vertical_alignment="center")
         is_ck = cols[0].checkbox("", value=p["checked"], key=f"ck_{idx}")
         cols[1].write(f"~~{p['raw']}~~" if is_ck else f"**{p['raw']}**")
         cols[2].write(f"**${int(p['price'])}**")
@@ -137,7 +142,7 @@ with tab1:
 
 with tab3:
     st.metric("當前餘額", f"${st.session_state.wallet_balance}")
-    if st.button("重置所有預設為0"):
+    if st.button("🚨 強制重置所有資料 (含草稿)"):
         save_today_draft(None); st.rerun()
 
 with tab4:
