@@ -205,78 +205,50 @@ with tab_balls:
             st.rerun()
 
 with tab_check:
-    st.header("👥 現場球友收款確認")
-    price_options = ["250", "240", "180", "170", "140", "💡 自行填寫金額"]
-    st.write("### 📥 批量匯入名單區")
+with tab_check:
+    st.header("👥 現場名單收款")
     
-    current_inputs = []
-    for b_idx in range(st.session_state.input_blocks_count):
-        st.markdown(f"#### 💰 收費群組 #{b_idx+1}")
-        col_in1, col_in2 = st.columns([2, 3])
-        with col_in1:
-            sel_price_type = st.selectbox("選擇此批名單費率", price_options, index=0, key=f"in_type_{b_idx}")
-            if sel_price_type == "💡 自行填寫金額":
-                final_p = st.number_input("輸入自訂金額", min_value=0, value=100, step=10, key=f"in_custom_{b_idx}")
-            else:
-                final_p = int(sel_price_type)
-        with col_in2:
-            txt_list = st.text_area("貼上名單", placeholder="1.小宗\n2.阿杜", height=100, key=f"in_txt_{b_idx}")
-        current_inputs.append({"price": final_p, "text": txt_list})
+    # 1. 輸入區塊：貼上名單的地方
+    col1, col2 = st.columns([1, 2])
+    price_input = col1.number_input("金額", value=250, step=10)
+    names_input = col2.text_area("貼上名單 (每行一人)", height=100)
     
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("➕ 增加不同收費的名單區"):
-            st.session_state.input_blocks_count += 1
-            sync_state_to_draft()
-            st.rerun()
-    with col_btn2:
-        if st.button("🚀 產生/重置全團收款對帳單", type="primary"):
-            st.session_state.check_groups = []
-            for block in current_inputs:
-                if block["text"].strip():
-                    lines = block["text"].split("\n")
-                    for line in lines:
-                        line = line.strip()
-                        if not line: continue
-                        st.session_state.check_groups.append({
-                            "raw": line, "price": int(block["price"]), "checked": False
-                        })
-            sync_state_to_draft()
-            st.success("🎉 全新收款對帳單已生成！")
+    if st.button("➕ 加入名單"):
+        if names_input.strip():
+            for name in names_input.split('\n'):
+                if name.strip():
+                    st.session_state.check_groups.append({"raw": name.strip(), "price": int(price_input), "checked": False})
             st.rerun()
 
     st.divider()
+    
+    # 2. 名單顯示區：這裡就是排版的地方
     if st.session_state.check_groups:
-        st.write("### 📋 現場點名收款清單：")
-        if st.button("🧹 清空當前所有球友名單"):
-            st.session_state.check_groups = []
-            sync_state_to_draft()
-            st.success("已清空所有球友！")
-            st.rerun()
-            
-        checked_count = sum(1 for p in st.session_state.check_groups if p["checked"])
-        total_p_count = len(st.session_state.check_groups)
-        st.progress(checked_count / total_p_count if total_p_count > 0 else 0)
-        st.caption(f"目前收款進度： 已收 {checked_count} / {total_p_count} 人")
-        
-        need_rerun = False
         for p_idx, player in enumerate(st.session_state.check_groups):
-            # 調整欄位比例，讓按鈕靠右
-            col_ck1, col_ck2, col_ck3, col_ck4 = st.columns([0.2, 3.5, 1.5, 0.8])
-            with col_ck1:
-                is_ck = st.checkbox("", value=player["checked"], key=f"ck_g_{p_idx}", on_change=sync_state_to_draft)
-                st.session_state.check_groups[p_idx]["checked"] = is_ck
-            with col_ck2:
-                st.write(f"~~{player['raw']}~~" if is_ck else f"**{player['raw']}**")
-            with col_ck3:
-                if is_ck: st.write(f"✅ `${int(player['price'])}`")
-                else: st.markdown(f"<font color='red'>**${int(player['price'])}**</font>", unsafe_allow_html=True)
-            with col_ck4:
-                if st.button("🗑️", key=f"del_player_{p_idx}"):
-                    st.session_state.check_groups.pop(p_idx)
-                    sync_state_to_draft()
-                    need_rerun = True
-        if need_rerun: st.rerun()
+            # 設定 5 個欄位：勾選(0.5), 姓名(3), 金額(1), 編輯(0.5), 刪除(0.5)
+            cols = st.columns([0.5, 3.0, 1.0, 0.5, 0.5])
+            
+            # 勾選框
+            is_checked = cols[0].checkbox("", value=player["checked"], key=f"c_{p_idx}")
+            st.session_state.check_groups[p_idx]["checked"] = is_checked
+            
+            # 顯示名字與金額
+            cols[1].write(f"~~{player['raw']}~~" if is_checked else f"**{player['raw']}**")
+            cols[2].write(f"${int(player['price'])}")
+            
+            # 編輯按鈕 (點擊會彈出修改視窗)
+            with cols[3]:
+                with st.popover("✏️"):
+                    new_n = st.text_input("修改姓名", value=player["raw"])
+                    new_p = st.number_input("修改金額", value=int(player["price"]), step=10)
+                    if st.button("💾 確認", key=f"save_{p_idx}"):
+                        st.session_state.check_groups[p_idx].update({"raw": new_n, "price": int(new_p)})
+                        st.rerun()
+            
+            # 刪除按鈕
+            if cols[4].button("🗑️", key=f"del_{p_idx}"):
+                st.session_state.check_groups.pop(p_idx)
+                st.rerun()
 
 with tab_main:
     st.header("🏢 2. 場地費計算")
