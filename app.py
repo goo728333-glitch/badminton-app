@@ -568,7 +568,7 @@ with tab_main:
 
     with col_c1_hr:
 
-        court_hours_1 = st.number_input("使用小時數", min_value=0.0, value=float(draft.get("court_hours_1", 1.0)), step=0.5, key="c_hours_1", on_change=sync_state_to_draft)
+        court_hours_1 = st.number_input("使用小時數", min_value=0, value=float(draft.get("court_hours_1", 1)), step=1, key="c_hours_1", on_change=sync_state_to_draft)
 
     subtotal_court_1 = court_rate_1 * court_hours_1
 
