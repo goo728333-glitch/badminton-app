@@ -205,7 +205,6 @@ with tab_balls:
             st.rerun()
 
 with tab_check:
-with tab_check:
     st.header("👥 現場名單收款")
     
     # 1. 輸入區塊：貼上名單的地方
