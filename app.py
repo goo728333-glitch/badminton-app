@@ -253,42 +253,37 @@ with tab_check:
             sync_state_to_draft()
             st.success("已清空所有球友！")
             st.rerun()
+        
+        # 將清單按價格分組顯示
+        unique_prices = sorted(list(set(p['price'] for p in st.session_state.check_groups)), reverse=True)
+        
+        for price in unique_prices:
+            # 篩選出該價格的球友並進行排序 (未勾選的在上面)
+            group = [p for p in st.session_state.check_groups if p['price'] == price]
+            sorted_group = sorted(group, key=lambda x: x["checked"])
             
-        # --- 核心邏輯：排序已收款項目到最下方 ---
-        # sorted 會根據 checked (False < True) 排序，未勾選(False)的排前面，勾選(True)的排後面
-        sorted_groups = sorted(st.session_state.check_groups, key=lambda x: x["checked"])
-        
-        checked_count = sum(1 for p in st.session_state.check_groups if p["checked"])
-        total_p_count = len(st.session_state.check_groups)
-        st.progress(checked_count / total_p_count if total_p_count > 0 else 0)
-        st.caption(f"目前收款進度： 已收 {checked_count} / {total_p_count} 人")
-        
-        need_rerun = False
-        # 為了正確對應 session_state，我們使用原索引
-        for i, player in enumerate(sorted_groups):
-            # 找到該 player 在原列表中的真實索引
-            original_idx = st.session_state.check_groups.index(player)
+            st.markdown(f"---")
+            st.subheader(f"💰 費率：${price} 元")
             
-            col_ck1, col_ck2, col_ck3, col_ck4 = st.columns([0.5, 2.0, 0.5, 0.5])
-            with col_ck1:
-                # 使用 original_idx 來確保 state 同步
-                is_ck = st.checkbox("", value=player["checked"], key=f"ck_g_{original_idx}")
-                if is_ck != player["checked"]:
-                    st.session_state.check_groups[original_idx]["checked"] = is_ck
-                    sync_state_to_draft()
-                    need_rerun = True
-            with col_ck2:
-                st.write(f"~~{player['raw']}~~" if is_ck else f"**{player['raw']}**")
-            with col_ck3:
-                if is_ck: st.write(f"✅ `${int(player['price'])}`")
-                else: st.markdown(f"<font color='red'>**${int(player['price'])}**</font>", unsafe_allow_html=True)
-            with col_ck4:
-                if st.button("🗑️", key=f"del_player_{original_idx}"):
-                    st.session_state.check_groups.pop(original_idx)
-                    sync_state_to_draft()
-                    need_rerun = True
-        
-        if need_rerun: st.rerun()
+            need_rerun = False
+            for player in sorted_group:
+                original_idx = st.session_state.check_groups.index(player)
+                col_ck1, col_ck2, col_ck3 = st.columns([0.5, 3.0, 0.5])
+                with col_ck1:
+                    is_ck = st.checkbox("", value=player["checked"], key=f"ck_g_{original_idx}")
+                    if is_ck != player["checked"]:
+                        st.session_state.check_groups[original_idx]["checked"] = is_ck
+                        sync_state_to_draft()
+                        need_rerun = True
+                with col_ck2:
+                    st.write(f"~~{player['raw']}~~" if is_ck else f"**{player['raw']}**")
+                with col_ck3:
+                    if st.button("🗑️", key=f"del_player_{original_idx}"):
+                        st.session_state.check_groups.pop(original_idx)
+                        sync_state_to_draft()
+                        need_rerun = True
+            
+            if need_rerun: st.rerun()
 
 with tab_main:
     st.header("🏢 2. 場地費計算")
