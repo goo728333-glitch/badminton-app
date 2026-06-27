@@ -260,22 +260,46 @@ with tab_check:
         st.caption(f"目前收款進度： 已收 {checked_count} / {total_p_count} 人")
         
         need_rerun = False
+
+        # 1. 注入 CSS，強制讓 class 為 right-buttons 的容器靠右對齊
+        st.markdown("""
+        <style>
+        .right-buttons { display: flex; justify-content: flex-end; gap: 5px; }
+        </style>
+        """, unsafe_allow_html=True)
+
         for p_idx, player in enumerate(st.session_state.check_groups):
-            # 調整欄位比例，讓按鈕靠右
-            col_ck1, col_ck2, col_ck3, col_ck4 = st.columns([0.5, 2.0, 0.5, 0.5])
-            with col_ck1:
-                is_ck = st.checkbox("", value=player["checked"], key=f"ck_g_{p_idx}", on_change=sync_state_to_draft)
+            # 建立三欄：[勾選] [姓名/金額] [右側按鈕區]
+            c1, c2, c3 = st.columns([0.5, 4.0, 1.5])
+            
+            with c1:
+                is_ck = st.checkbox("", value=player["checked"], key=f"ck_{p_idx}")
                 st.session_state.check_groups[p_idx]["checked"] = is_ck
-            with col_ck2:
-                st.write(f"~~{player['raw']}~~" if is_ck else f"**{player['raw']}**")
-            with col_ck3:
-                if is_ck: st.write(f"✅ `${int(player['price'])}`")
-                else: st.markdown(f"<font color='red'>**${int(player['price'])}**</font>", unsafe_allow_html=True)
-            with col_ck4:
-                if st.button("🗑️", key=f"del_player_{p_idx}"):
+            
+            with c2:
+                # 姓名與金額並排
+                display_text = f"~~{player['raw']}~~ - **${int(player['price'])}**" if is_ck else f"**{player['raw']}** - ${int(player['price'])}"
+                st.write(display_text)
+                
+            with c3:
+                # 使用 HTML div 包覆按鈕，強制靠右
+                st.markdown('<div class="right-buttons">', unsafe_allow_html=True)
+                
+                # 編輯按鈕
+                with st.popover("✏️"):
+                    new_n = st.text_input("改名", value=player["raw"], key=f"n_{p_idx}")
+                    new_p = st.number_input("改價", value=int(player["price"]), key=f"p_{p_idx}")
+                    if st.button("確認", key=f"save_{p_idx}"):
+                        st.session_state.check_groups[p_idx].update({"raw": new_n, "price": int(new_p)})
+                        st.rerun()
+                
+                # 刪除按鈕
+                if st.button("🗑️", key=f"del_{p_idx}"):
                     st.session_state.check_groups.pop(p_idx)
-                    sync_state_to_draft()
-                    need_rerun = True
+                    st.rerun()
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+        # 這是您要修改的區塊結束
         if need_rerun: st.rerun()
 
 with tab_main:
