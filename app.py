@@ -262,7 +262,7 @@ with tab_check:
         need_rerun = False
         for p_idx, player in enumerate(st.session_state.check_groups):
             # 調整欄位比例，讓按鈕靠右
-            col_ck1, col_ck2, col_ck3, col_ck4 = st.columns([0.2, 3.5, 1.5, 0.8])
+            col_ck1, col_ck2, col_ck3, col_ck4 = st.columns([0.5, 5.0, 0.5, 0.5])
             with col_ck1:
                 is_ck = st.checkbox("", value=player["checked"], key=f"ck_g_{p_idx}", on_change=sync_state_to_draft)
                 st.session_state.check_groups[p_idx]["checked"] = is_ck
