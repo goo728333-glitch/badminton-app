@@ -277,10 +277,13 @@ with tab_check:
             st.subheader(f"💰 費率：${price} 元")
             need_rerun = False
             for player in sorted_group:
+                # 為了避免 Duplicate Key，使用 raw 字串加上價格作為 Unique Key
+                player_key = f"ck_{player['raw']}_{player['price']}"
                 original_idx = st.session_state.check_groups.index(player)
+                
                 col_ck1, col_ck2, col_ck3 = st.columns([0.5, 3.0, 0.5])
                 with col_ck1:
-                    is_ck = st.checkbox("", value=player["checked"], key=f"ck_g_{original_idx}")
+                    is_ck = st.checkbox("", value=player["checked"], key=player_key)
                     if is_ck != player["checked"]:
                         st.session_state.check_groups[original_idx]["checked"] = is_ck
                         sync_state_to_draft()
@@ -288,7 +291,7 @@ with tab_check:
                 with col_ck2:
                     st.write(f"~~{player['raw']}~~" if is_ck else f"**{player['raw']}**")
                 with col_ck3:
-                    if st.button("🗑️", key=f"del_player_{original_idx}"):
+                    if st.button("🗑️", key=f"del_player_{player_key}"):
                         st.session_state.check_groups.pop(original_idx)
                         sync_state_to_draft()
                         need_rerun = True
