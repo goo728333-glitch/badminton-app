@@ -148,137 +148,272 @@ with tab_history:
 # (其餘 tab_main, tab_check 程式碼保持不變，略過以縮短長度)
 # ... (建議將您原本的 tab_main 和 tab_check 程式碼放置於此)
 
+
+
 with tab_main:
+
     st.header("🏢 2. 場地費計算")
+
     col_c1_rate, col_c1_hr = st.columns(2)
+
     with col_c1_rate:
+
         court_rate_1 = st.number_input("每小時費用 ($)", min_value=0, value=int(draft.get("court_rate_1", 150)), step=50, key="c_rate_1", on_change=sync_state_to_draft)
+
     with col_c1_hr:
+
         court_hours_1 = st.number_input("使用小時數", min_value=0, value=int(draft.get("court_hours_1", 0)), step=1, key="c_hours_1", on_change=sync_state_to_draft)
+
     subtotal_court_1 = court_rate_1 * court_hours_1
 
+
+
     col_c2_rate, col_c2_hr = st.columns(2)
+
     with col_c2_rate:
+
         court_rate_2 = st.number_input("每小時費用 ($) ", min_value=0, value=int(draft.get("court_rate_2", 250)), step=50, key="c_rate_2", on_change=sync_state_to_draft)
+
     with col_c2_hr:
+
         court_hours_2 = st.number_input("使用小時數 ", min_value=0, value=int(draft.get("court_hours_2", 0)), step=1, key="c_hours_2", on_change=sync_state_to_draft)
+
     subtotal_court_2 = court_rate_2 * court_hours_2
+
     
+
     total_court_fee = int(subtotal_court_1 + subtotal_court_2)
+
     st.caption(f"➔ 場地費總計 $ {total_court_fee} 元")
 
+
+
     st.divider()
+
     st.header("🏸 4. 消耗羽毛球計算")
+
     exact_ball_fee = 0.0
+
     used_balls_summary = []
 
+
+
     if not st.session_state.ball_types:
+
         st.warning("請先到『錢包與球種管理』分頁新增羽毛球資料！")
+
     else:
+
         ball_options = [b["name"] for b in st.session_state.ball_types]
+
         draft_ball_selections = draft.get("ball_selections", [])
+
         for f_idx in range(st.session_state.ball_selectors_count):
+
             col_sb1, col_sb2 = st.columns([2, 1])
+
             default_ball_name = ball_options[0]
+
             if f_idx < len(draft_ball_selections):
+
                 saved_name = draft_ball_selections[f_idx].get("name", "")
+
                 if saved_name in ball_options: default_ball_name = saved_name
+
             default_ball_count = 0
+
             if f_idx < len(draft_ball_selections): default_ball_count = int(draft_ball_selections[f_idx].get("count", 0))
+
                 
+
             with col_sb1:
+
                 selected_ball_name = st.selectbox(f"使用球種 #{f_idx+1}", ball_options, index=ball_options.index(default_ball_name), key=f"sel_ball_{f_idx}", on_change=sync_state_to_draft)
+
             with col_sb2:
+
                 u_count = st.number_input("消耗顆數", min_value=0, value=default_ball_count, step=1, key=f"sel_count_{f_idx}", on_change=sync_state_to_draft)
+
             
+
             target_ball = next(b for b in st.session_state.ball_types if b["name"] == selected_ball_name)
+
             single_b_price = target_ball["tube_price"] / target_ball["count"]
+
             if u_count > 0:
+
                 exact_ball_fee += single_b_price * u_count
+
                 used_balls_summary.append(f"{selected_ball_name}*{u_count}顆")
+
         
+
         if st.button("➕ 增加使用其他球種"):
+
             st.session_state.ball_selectors_count += 1
+
             sync_state_to_draft()
+
             st.rerun()
+
         total_ball_fee = int(exact_ball_fee)
+
         st.caption(f"➔ 羽球成本總計 $ {total_ball_fee} 元")
 
+
+
     st.divider()
+
     st.header("💰 3. 現場收費總額計算")
+
     total_revenue = 0
+
     revenue_summary = []
+
     draft_rev_selections = draft.get("revenue_selections", [])
+
     
+
     for r_idx in range(st.session_state.revenue_selectors_count):
+
         st.write(f"**收費項目 #{r_idx+1}**")
+
         col_rev1, col_rev2, col_rev3 = st.columns([2, 2, 1])
+
         default_rev_type = "250"
+
         if r_idx < len(draft_rev_selections):
+
             saved_type = draft_rev_selections[r_idx].get("type", "250")
+
             if saved_type in price_options: default_rev_type = saved_type
+
         default_custom_p = 100
+
         if r_idx < len(draft_rev_selections): default_custom_p = int(draft_rev_selections[r_idx].get("custom", 100))
+
         default_rev_count = 0
+
         if r_idx < len(draft_rev_selections): default_rev_count = int(draft_rev_selections[r_idx].get("count", 0))
+
         
+
         with col_rev1:
+
             chosen_price_type = st.selectbox("選擇費率 / 類型", price_options, index=price_options.index(default_rev_type), key=f"rev_type_{r_idx}", on_change=sync_state_to_draft)
+
         
+
         final_unit_price = 0
+
         if chosen_price_type == "💡 自行填寫金額":
+
             with col_rev2:
+
                 final_unit_price = st.number_input("請輸入自訂金額 ($)", min_value=0, value=default_custom_p, step=10, key=f"rev_custom_{r_idx}", on_change=sync_state_to_draft)
+
         else:
+
             final_unit_price = int(chosen_price_type)
+
             with col_rev2: st.write(f"單價：${final_unit_price} 元")
+
         with col_rev3:
+
             rev_p_count = st.number_input("人數 / 數量", min_value=0, value=default_rev_count, step=1, key=f"rev_count_{r_idx}", on_change=sync_state_to_draft)
+
             
+
         item_total = int(final_unit_price * rev_p_count)
+
         total_revenue += item_total
+
         if rev_p_count > 0: revenue_summary.append(f"{final_unit_price}*{rev_p_count}人")
+
             
+
     if st.button("➕ 增加開團其他收費項目"):
+
         st.session_state.revenue_selectors_count += 1
+
         sync_state_to_draft()
+
         st.rerun()
+
     st.caption(f"➔ 總收費小計 $ {total_revenue} 元")
 
+
+
     st.divider()
+
     total_expense = int(total_court_fee + total_ball_fee)
+
     net_profit = int(total_revenue - total_expense)
+
     
+
     st.subheader("📊 今日結算與錢包代墊設定")
+
     use_wallet_pay = st.checkbox("💡 代墊設定", value=False)
+
     
+
     m_c1, m_c2, m_c3 = st.columns(3)
+
     m_c1.metric("總收入", f"$ {total_revenue}")
+
     m_c2.metric("總成本", f"$ {total_expense}")
+
     m_c3.metric("淨利潤", f"$ {net_profit}")
 
+
+
     if st.button("💾 結算今日開團並連動錢包", type="primary"):
+
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+
         balls_note = ", ".join(used_balls_summary) if used_balls_summary else "無用球"
+
         rev_note = ", ".join(revenue_summary) if revenue_summary else "無收入"
+
         court_note = f"{court_rate_1}*{court_hours_1}h"
+
         if court_hours_2 > 0: court_note += f" + {court_rate_2}*{court_hours_2}h"
+
         note_str = f"場地({court_note}), 球:{balls_note}, 收費({rev_note})" + (" (代墊)" if use_wallet_pay else "")
+
         
+
         add_history_record(now_str, total_revenue, total_expense, net_profit, note_str)
+
         st.session_state.wallet_balance = int(st.session_state.wallet_balance + net_profit)
+
         save_config(st.session_state.wallet_balance, st.session_state.ball_types)
+
         save_today_draft(None)
+
         
+
         st.session_state.ball_selectors_count = 1
+
         st.session_state.revenue_selectors_count = 1
+
         st.session_state.input_blocks_count = 1
+
         st.session_state.check_groups = []
+
         st.success("🎉 結算成功！")
+
         st.rerun()
 
+
+
 with tab_history:
+
     st.header("📊 歷史記帳本 (永久儲存)")
+
     df_history = load_history()
+
     if df_history.empty: st.info("目前資料庫中還沒有任何歷史紀錄。")
+
     else: st.dataframe(df_history, use_container_width=True)
